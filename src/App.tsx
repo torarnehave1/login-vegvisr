@@ -97,10 +97,13 @@ function App() {
     setStatusMessage('')
     setLoading(true)
     try {
+      const params = new URLSearchParams(window.location.search)
+      const redirectTarget = params.get('redirect') || 'https://aichat.vegvisr.org'
+      const redirectUrl = `${window.location.origin}?redirect=${encodeURIComponent(redirectTarget)}`
       const res = await fetch(`${MAGIC_BASE}/login/magic/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim() })
+        body: JSON.stringify({ email: email.trim(), redirectUrl })
       })
       const data = await res.json()
       if (!res.ok || !data.success) {
@@ -131,7 +134,7 @@ function App() {
       persistUser(userContext)
       const params = new URLSearchParams(window.location.search)
       const fallbackRedirect = params.get('redirect') || 'https://aichat.vegvisr.org'
-      window.location.href = data.redirectUrl || fallbackRedirect
+      window.location.href = fallbackRedirect
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : t('login.errorVerify')
