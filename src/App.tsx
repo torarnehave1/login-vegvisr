@@ -95,6 +95,14 @@ function App() {
     }
   }
 
+  const shouldHonorRedirect = (target: string | null) => {
+    if (!target) return false
+    if (typeof document === 'undefined') return false
+    const referrer = document.referrer || ''
+    if (!referrer) return false
+    return !referrer.startsWith(window.location.origin)
+  }
+
   const sendMagicLink = async () => {
     if (!email.trim()) return
     setErrorMessage('')
@@ -102,7 +110,8 @@ function App() {
     setLoading(true)
     try {
       const params = new URLSearchParams(window.location.search)
-      const redirectTarget = params.get('redirect') || 'https://www.vegvisr.org/user'
+      const redirectParam = params.get('redirect')
+      const redirectTarget = shouldHonorRedirect(redirectParam) ? redirectParam : window.location.origin
       const redirectUrl = `${window.location.origin}?redirect=${encodeURIComponent(redirectTarget)}`
       const res = await fetch(`${MAGIC_BASE}/login/magic/send`, {
         method: 'POST',
@@ -167,7 +176,7 @@ function App() {
       persistUser(userContext)
       const params = new URLSearchParams(window.location.search)
       const fallbackRedirect = params.get('redirect')
-      if (fallbackRedirect) {
+      if (shouldHonorRedirect(fallbackRedirect)) {
         window.location.href = fallbackRedirect
       } else {
         setStatusMessage(t('login.sentStatus'))
