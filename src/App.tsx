@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { LanguageSelector } from 'vegvisr-ui-kit'
+import { BrandLogo, EcosystemNav, LanguageSelector } from 'vegvisr-ui-kit'
 import { LanguageContext } from './lib/LanguageContext'
 import { getStoredLanguage, setStoredLanguage } from './lib/storage'
 import { useTranslation } from './lib/useTranslation'
@@ -10,6 +10,7 @@ const DASHBOARD_BASE = 'https://dashboard.vegvisr.org'
 
 function App() {
   const [language, setLanguageState] = useState(getStoredLanguage())
+  const [isAuthed, setIsAuthed] = useState(false)
   const [email, setEmail] = useState('')
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
@@ -59,6 +60,7 @@ function App() {
       setAuthCookie(user.emailVerificationToken)
     }
     sessionStorage.setItem('email_session_verified', '1')
+    setIsAuthed(true)
   }
 
   const fetchUserContext = async (targetEmail: string) => {
@@ -164,8 +166,12 @@ function App() {
       const userContext = await fetchUserContext(data.email)
       persistUser(userContext)
       const params = new URLSearchParams(window.location.search)
-      const fallbackRedirect = params.get('redirect') || 'https://www.vegvisr.org/user'
-      window.location.href = fallbackRedirect
+      const fallbackRedirect = params.get('redirect')
+      if (fallbackRedirect) {
+        window.location.href = fallbackRedirect
+      } else {
+        setStatusMessage(t('login.sentStatus'))
+      }
     } catch (err) {
       setErrorMessage(
         err instanceof Error ? err.message : t('login.errorVerify')
@@ -177,17 +183,27 @@ function App() {
   }
 
   useEffect(() => {
+    let hasSession = false
     try {
       const existing = localStorage.getItem('user')
       if (existing) {
         const parsed = JSON.parse(existing)
         if (parsed?.emailVerificationToken) {
           setAuthCookie(parsed.emailVerificationToken)
+          hasSession = true
         }
       }
     } catch {
       // ignore local storage errors
     }
+    try {
+      if (sessionStorage.getItem('email_session_verified') === '1') {
+        hasSession = true
+      }
+    } catch {
+      // ignore session storage errors
+    }
+    setIsAuthed(hasSession)
     const params = new URLSearchParams(window.location.search)
     const magic = params.get('magic')
     if (magic) {
@@ -201,9 +217,7 @@ function App() {
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.25),_transparent_55%),radial-gradient(circle_at_bottom,_rgba(139,92,246,0.25),_transparent_55%)]" />
         <div className="relative mx-auto flex min-h-screen max-w-4xl flex-col px-6 py-12">
           <header className="flex flex-wrap items-center justify-between gap-4">
-            <div className="text-sm font-semibold uppercase tracking-[0.4em] text-white/60">
-              {t('app.title')}
-            </div>
+            <BrandLogo label={t('app.title')} size={46} className="h-12 w-auto" />
             <div className="flex items-center gap-3">
               <LanguageSelector value={language} onChange={setLanguage} />
               <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
@@ -211,6 +225,12 @@ function App() {
               </span>
             </div>
           </header>
+
+          {isAuthed && (
+            <div className="mt-4 flex flex-wrap items-center gap-3">
+              <EcosystemNav />
+            </div>
+          )}
 
           <main className="mt-16 grid gap-6 md:grid-cols-[1.1fr_0.9fr]">
             <section className="space-y-6">
