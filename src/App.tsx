@@ -5,6 +5,7 @@ import { getStoredLanguage, setStoredLanguage } from './lib/storage'
 import { useTranslation } from './lib/useTranslation'
 
 const MAGIC_BASE = 'https://email-worker.torarnehave.workers.dev'
+const MAIN_WORKER_BASE = 'https://vegvisr-frontend.torarnehave.workers.dev'
 const DASHBOARD_BASE = 'https://dashboard.vegvisr.org'
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
   const [statusMessage, setStatusMessage] = useState('')
   const [errorMessage, setErrorMessage] = useState('')
   const [loading, setLoading] = useState(false)
+  const [mode, setMode] = useState<'login' | 'register'>('login')
   const setLanguage = (value: typeof language) => {
     setLanguageState(value)
     setStoredLanguage(value)
@@ -98,7 +100,7 @@ function App() {
     setLoading(true)
     try {
       const params = new URLSearchParams(window.location.search)
-      const redirectTarget = params.get('redirect') || 'https://aichat.vegvisr.org'
+      const redirectTarget = params.get('redirect') || 'https://www.vegvisr.org/user'
       const redirectUrl = `${window.location.origin}?redirect=${encodeURIComponent(redirectTarget)}`
       const res = await fetch(`${MAGIC_BASE}/login/magic/send`, {
         method: 'POST',
@@ -112,6 +114,35 @@ function App() {
       setStatusMessage(t('login.sentStatus'))
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : t('login.errorSend'))
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const registerUser = async () => {
+    if (!email.trim()) return
+    setErrorMessage('')
+    setStatusMessage('')
+    setLoading(true)
+    try {
+      const res = await fetch(
+        `${MAIN_WORKER_BASE}/sve2?email=${encodeURIComponent(email.trim())}`,
+        { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      )
+      const data = await res.json()
+      const message = data?.message || data?.body?.message
+      if (!res.ok) {
+        throw new Error(message || 'Registration failed.')
+      }
+      if (message === 'User with this email already exists.') {
+        setErrorMessage(message)
+        return
+      }
+      setStatusMessage(
+        'Check your email to verify your account. The verification link will complete registration.'
+      )
+    } catch (err) {
+      setErrorMessage(err instanceof Error ? err.message : 'Registration failed.')
     } finally {
       setLoading(false)
     }
@@ -133,7 +164,7 @@ function App() {
       const userContext = await fetchUserContext(data.email)
       persistUser(userContext)
       const params = new URLSearchParams(window.location.search)
-      const fallbackRedirect = params.get('redirect') || 'https://aichat.vegvisr.org'
+      const fallbackRedirect = params.get('redirect') || 'https://www.vegvisr.org/user'
       window.location.href = fallbackRedirect
     } catch (err) {
       setErrorMessage(
@@ -146,6 +177,17 @@ function App() {
   }
 
   useEffect(() => {
+    try {
+      const existing = localStorage.getItem('user')
+      if (existing) {
+        const parsed = JSON.parse(existing)
+        if (parsed?.emailVerificationToken) {
+          setAuthCookie(parsed.emailVerificationToken)
+        }
+      }
+    } catch {
+      // ignore local storage errors
+    }
     const params = new URLSearchParams(window.location.search)
     const magic = params.get('magic')
     if (magic) {
@@ -197,12 +239,33 @@ function App() {
                     />
                     <button
                       type="button"
-                      onClick={sendMagicLink}
+                      onClick={mode === 'register' ? registerUser : sendMagicLink}
                       disabled={loading}
                       className="rounded-2xl bg-gradient-to-r from-sky-500 to-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-sky-500/30"
                     >
-                      {loading ? t('login.actionSending') : t('login.action')}
+                      {loading
+                        ? t('login.actionSending')
+                        : mode === 'register'
+                          ? 'Create account'
+                          : t('login.action')}
                     </button>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-white/60">
+                    <button
+                      type="button"
+                      onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
+                      className="underline decoration-white/40 underline-offset-4"
+                    >
+                      {mode === 'register' ? 'Already registered? Sign in' : 'Need an account? Register'}
+                    </button>
+                    <a
+                      href="https://www.vegvisr.org/register"
+                      className="underline decoration-white/40 underline-offset-4"
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Legacy register
+                    </a>
                   </div>
                   {statusMessage && (
                     <p className="text-xs text-emerald-300">{statusMessage}</p>
