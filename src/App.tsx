@@ -4,7 +4,7 @@ import { LanguageContext } from './lib/LanguageContext'
 import { getStoredLanguage, setStoredLanguage } from './lib/storage'
 import { useTranslation } from './lib/useTranslation'
 
-const MAGIC_BASE = 'https://email-worker.torarnehave.workers.dev'
+const MAGIC_BASE = 'https://cookie.vegvisr.org'
 const MAIN_WORKER_BASE = 'https://vegvisr-frontend.torarnehave.workers.dev'
 const DASHBOARD_BASE = 'https://dashboard.vegvisr.org'
 
@@ -112,7 +112,7 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       const redirectParam = params.get('redirect')
       const redirectTarget = shouldHonorRedirect(redirectParam) ? redirectParam : window.location.origin
-      const redirectUrl = `${window.location.origin}?redirect=${encodeURIComponent(redirectTarget)}`
+      const redirectUrl = `${window.location.origin}?redirect=${encodeURIComponent(redirectTarget!)}`
       const res = await fetch(`${MAGIC_BASE}/login/magic/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -177,7 +177,7 @@ function App() {
       const params = new URLSearchParams(window.location.search)
       const fallbackRedirect = params.get('redirect')
       if (shouldHonorRedirect(fallbackRedirect)) {
-        window.location.href = fallbackRedirect
+        window.location.href = fallbackRedirect!
       } else {
         setStatusMessage(t('login.sentStatus'))
       }
